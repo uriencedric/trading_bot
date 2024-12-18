@@ -1,0 +1,1 @@
+CRYPTO_DD_BASE_URL = "https://www.cryptodatadownload.com/cdd/"
