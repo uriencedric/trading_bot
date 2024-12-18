@@ -1,4 +1,4 @@
-from data.binance import fetch_data
+from data.fetch import *
 from lib.calculations import calculate_indicators
 from lib.ml import train_model
 from lib.tools import backtest, evaluate_strategy
@@ -7,7 +7,8 @@ from lib.tools import backtest, evaluate_strategy
 def main():
     symbol = 'BTC/USDT'
     timeframe = '3m'
-    df = fetch_data(symbol, timeframe)
+    provider = get_provider("binance")
+    df = provider(timeframe, symbol)
     df = calculate_indicators(df)
 
     model, hidden_states = train_model(df)
