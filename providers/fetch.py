@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta
+
 import ccxt
 import pandas as pd
-from datetime import datetime, timedelta
-from misc.constants import CRYPTO_DD_BASE_URL
+import requests
+
+from misc.constants import CRYPTO_DD_BASE_URL, COINGECKO_BASE_URL
 from misc.utils import fetch_csv_as_dataframe
 
 
@@ -14,15 +17,15 @@ def get_provider(provider):
     Returns:
         provider(args): our provider func with args
     """
-    PROVIDERS = {
-        "binance": binance,
-        "crypto_dd": crypto_dd
+    providers = {
+        "binance": _binance,
+        "crypto_dd": _crypto_dd
     }
 
-    return PROVIDERS.get(provider, None)
+    return providers.get(provider, None)
 
 
-def binance(timeframe="3m", symbol="BTC/USDT", since=None):
+def _binance(timeframe="3m", symbol="BTC/USDT", since=None):
     """ Fetch data to the ohlcv format.
 
     Args:
@@ -44,7 +47,7 @@ def binance(timeframe="3m", symbol="BTC/USDT", since=None):
     return df
 
 
-def crypto_dd(timeframe=None, symbol="BTCUSDT"):
+def _crypto_dd(timeframe=None, symbol="BTCUSDT"):
     """    Fetch data to the ohlcv format. (binance)
 
     Args:
@@ -62,6 +65,26 @@ def crypto_dd(timeframe=None, symbol="BTCUSDT"):
     ]
     dataframe = fetch_csv_as_dataframe(url, new_columns)
     df = pd.DataFrame(dataframe, columns=[
-                      'timestamp', 'open', 'high', 'low', 'close', 'volume_usdt'])
+        'timestamp', 'open', 'high', 'low', 'close', 'volume_usdt'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     return df
+
+
+def fetch_historical_data(symbol, vs_currency='usd', days='max'):
+    """
+    Fetch historical price data from CoinGecko.
+    """
+    url = f"{COINGECKO_BASE_URL}{symbol}/market_chart"
+    params = {'vs_currency': vs_currency, 'days': days}
+    response = requests.get(url, params=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        prices = data['prices']
+        df = pd.DataFrame(prices, columns=['timestamp', 'price'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('timestamp', inplace=True)
+        return df
+    else:
+        print("Failed to fetch data from CoinGecko.")
+        return None
