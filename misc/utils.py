@@ -1,7 +1,8 @@
 from datetime import datetime
-import requests
-import pandas as pd
 from io import StringIO
+
+import pandas as pd
+import requests
 
 
 def convert_timestamp_millis_to_date(timestamp_ms):
