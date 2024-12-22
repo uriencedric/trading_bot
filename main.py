@@ -1,9 +1,8 @@
-
-
 import argparse
 
 from misc.constants import FUNCTIONS
 from tools.run import get_function
+
 
 def main():
     # Create the parser
@@ -36,10 +35,11 @@ def main():
 
     # Validate the arguments
     if args.funcname not in FUNCTIONS:
-        print(f"Error: function {args.funcname} provided is not supported.")
+        print(f"Error: function provided: '{args.funcname}' is not supported.")
         return
 
     get_function(args.funcname)()
+
 
 if __name__ == "__main__":
     main()

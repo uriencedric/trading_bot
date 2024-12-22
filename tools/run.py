@@ -4,7 +4,8 @@ from lib.backtesting import backtest_trend_configurations, backtest, test_on_his
 from lib.indicators import calculate_indicators, calculate_volume_indicators, calculate_hybrid_trend, \
     analyze_trade_metrics, calculate_trend_indicators
 from lib.ml import train_model
-from lib.optimization import parallel_grid_search, refine_trend_with_volume, optimize_volume_parameters
+from lib.optimization import parallel_grid_search, refine_trend_with_volume, optimize_volume_parameters, \
+    grid_search_tuning
 from lib.trading import test_strategy_with_simulation, simulate_trades_with_trend, validate_strategy_on_symbols, \
     test_trend_aware_strategy, generate_volume_refined_signals, simulate_trades_with_volume, adaptive_training, \
     live_trading, adaptive_training_with_risk_controls
@@ -25,31 +26,33 @@ def get_function(function):
 
     """
     functions = {
-        "_back_test": _back_test,
-        "_back_test_optimized": _back_test_optimized,
-        "_adaptive_training_with_risk_controls": _adaptive_training_with_risk_controls,
-        "_hybrid_trend_aware_strategy": _hybrid_trend_aware_strategy,
-        "_run_strategy_parallel_grid_search": _run_strategy_parallel_grid_search,
-        "_simulation_historical_data": _simulation_historical_data,
-        "_trend_aware_strategy_on_symbols": _trend_aware_strategy_on_symbols,
-        "_volume_enhanced_strategy_on_symbol": _volume_enhanced_strategy_on_symbol,
-        "_volume_enhanced_historical_strategy_on_symbols": _volume_enhanced_historical_strategy_on_symbols,
-        "_walk_forward_live_trading": _walk_forward_live_trading,
-        "_walk_forward_adaptative_training": _walk_forward_adaptative_training,
+        "back_test": back_test,
+        "back_test_optimized": back_test_optimized,
+        "back_test_optimized_with_grid_search": back_test_optimized_with_grid_search,
+        "run_strategy_parallel_grid_search": run_strategy_parallel_grid_search,
+        "adaptive_training_with_risk_controls": adaptive_training_with_risk_controls,
+        "hybrid_trend_aware_strategy": hybrid_trend_aware_strategy,
+        "simulation_historical_data": simulation_historical_data,
+        "trend_aware_strategy_on_symbols": trend_aware_strategy_on_symbols,
+        "volume_enhanced_strategy_on_symbol": volume_enhanced_strategy_on_symbol,
+        "volume_enhanced_historical_strategy_on_symbols": volume_enhanced_historical_strategy_on_symbols,
+        "walk_forward_live_trading": walk_forward_live_trading,
+        "walk_forward_adaptative_training": walk_forward_adaptative_training,
     }
 
     return functions.get(function, None)
 
 
-def _back_test():
-    symbol = 'BTC/USDT'
+def back_test():
+    symbol = 'BTCUSDT'
     timeframe = '1d'
 
-    df = fetch.get_provider("binance")(timeframe, symbol)(timeframe, symbol)
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
+
     df = calculate_indicators(df)
 
     hmm_model, hidden_states = train_model(df)
-    cumulative_returns = backtest(df, hidden_states, hmm_model)
+    df, cumulative_returns = backtest(df, hidden_states, hmm_model)
 
     # Plotting results
     plt.figure(figsize=(12, 6))
@@ -60,10 +63,10 @@ def _back_test():
     plt.show()
 
 
-def _back_test_optimized():
-    symbol = 'BTC/USDT'
+def back_test_optimized():
+    symbol = 'BTCUSDT'
     timeframe = '1d'
-    df = fetch.get_provider("binance")(timeframe, symbol)
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
     df = calculate_indicators(df)
 
     hmm_model, hidden_states = train_model(df)
@@ -72,10 +75,37 @@ def _back_test_optimized():
     evaluate_strategy(df, cumulative_returns)
 
 
-def _adaptive_training_with_risk_controls():
-    symbol = 'BTC/USDT'
+def back_test_optimized_with_grid_search():
+    symbol = 'BTCUSDT'
     timeframe = '1d'
-    df = fetch.get_provider("binance")(timeframe, symbol)
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
+    df = calculate_indicators(df)
+
+    # Perform parameter tuning
+    best_model, best_hidden_states, best_config = grid_search_tuning(df)
+
+    # Evaluate and visualize the best model
+    backtested_df, cumulative_returns = backtest(df, best_hidden_states, best_model, risk_per_trade=best_config['risk'])
+    evaluate_strategy(backtested_df, cumulative_returns)
+
+
+def run_strategy_parallel_grid_search():
+    symbol = 'BTCUSDT'
+    timeframe = '1d'
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
+    df = calculate_indicators(df)
+
+    # Perform parallel parameter tuning
+    best_model, best_hidden_states, best_metrics, best_df, best_config = parallel_grid_search(df)
+
+    # Evaluate and visualize the best model
+    evaluate_strategy(best_df, (1 + best_df['strategy_returns']).cumprod())
+
+
+def adaptive_training_with_risk_controls():
+    symbol = 'BTCUSDT'
+    timeframe = '1d'
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
     df = calculate_indicators(df)
 
     # Add volume indicators
@@ -91,12 +121,12 @@ def _adaptive_training_with_risk_controls():
     adaptive_training_with_risk_controls(symbol, timeframe, best_config)
 
 
-def _hybrid_trend_aware_strategy():
+def hybrid_trend_aware_strategy():
     symbol = 'BTC/USDT'
     timeframe = '1d'
 
     # Fetch and preprocess data
-    df = fetch.get_provider("binance")(timeframe, symbol)
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
     df = calculate_indicators(df)
     df = calculate_volume_indicators(df)
 
@@ -124,20 +154,7 @@ def _hybrid_trend_aware_strategy():
     plot_volume_indicators(df)
 
 
-def _run_strategy_parallel_grid_search():
-    symbol = 'BTC/USDT'
-    timeframe = '1d'
-    df = fetch.get_provider("binance")(timeframe, symbol)
-    df = calculate_indicators(df)
-
-    # Perform parallel parameter tuning
-    best_model, best_hidden_states, best_metrics, best_df, best_config = parallel_grid_search(df)
-
-    # Evaluate and visualize the best model
-    evaluate_strategy(best_df, (1 + best_df['strategy_returns']).cumprod())
-
-
-def _simulation_historical_data():
+def simulation_historical_data():
     """
     Analyze Simulated Trades:
     Visualize Volume Indicators:
@@ -149,7 +166,7 @@ def _simulation_historical_data():
     timeframe = '1d'
 
     # Fetch and process data
-    df = fetch.get_provider("binance")(timeframe, symbol)
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
     df = calculate_indicators(df)
     df = calculate_volume_indicators(df)
     # Perform parameter optimization
@@ -176,12 +193,12 @@ def _simulation_historical_data():
     plot_trend(coingecko_data)
 
 
-def _trend_aware_strategy_on_symbols():
+def trend_aware_strategy_on_symbols():
     symbol = 'BTC/USDT'
     timeframe = '1d'
 
     # Perform parameter optimization
-    df = fetch.get_provider("binance")(timeframe, symbol)
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
     df = calculate_indicators(df)
     best_model, best_hidden_states, best_metrics, best_df, best_config = parallel_grid_search(df)
 
@@ -194,12 +211,12 @@ def _trend_aware_strategy_on_symbols():
     validate_results = validate_strategy_on_symbols(symbols, timeframes, best_config)
 
 
-def _volume_enhanced_strategy_on_symbol():
+def volume_enhanced_strategy_on_symbol():
     symbol = 'BTC/USDT'
     timeframe = '1d'
 
     # Fetch and preprocess data
-    df = fetch.get_provider("binance")(timeframe, symbol)
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
     df = calculate_indicators(df)
     df = calculate_volume_indicators(df)
     df = calculate_trend_indicators(df)
@@ -221,39 +238,10 @@ def _volume_enhanced_strategy_on_symbol():
     plot_volume_indicators(df)
 
 
-def _volume_enhanced_historical_strategy_on_symbols():
+def walk_forward_live_trading():
     symbol = 'BTC/USDT'
     timeframe = '1d'
-
-    symbols = ['bitcoin', 'ethereum', 'binancecoin', 'solana']
-    results_by_symbol = {}
-    df = None
-    for symbol in symbols:
-        df = fetch_historical_data(symbol, "usd", "max")
-        df = calculate_indicators(df)
-        df = calculate_volume_indicators(df)
-        df = calculate_trend_indicators(df)
-        df = calculate_hybrid_trend(df)
-        df = refine_trend_with_volume(df)
-
-    parameter_grid = [
-        {"short_window": 14, "long_window": 28},
-        {"short_window": 20, "long_window": 40},
-    ]
-    results = optimize_volume_parameters(df, parameter_grid)
-    results_by_symbol[symbol] = results
-
-    # Display top results for each symbol
-    for symbol, results in results_by_symbol.items():
-        print(f"Best Results for {symbol}:")
-        print(results[0])
-        plot_volume_indicators(df)
-
-
-def _walk_forward_live_trading():
-    symbol = 'BTC/USDT'
-    timeframe = '1d'
-    df = fetch.get_provider("binance")(timeframe, symbol)
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
     df = calculate_indicators(df)
 
     # Perform parameter optimization
@@ -277,10 +265,10 @@ def _walk_forward_live_trading():
     # Start live trading
 
 
-def _walk_forward_adaptative_training():
+def walk_forward_adaptative_training():
     symbol = 'BTC/USDT'
     timeframe = '1d'
-    df = fetch.get_provider("binance")(timeframe, symbol)
+    df = fetch.get_provider("crypto_dd")(timeframe, symbol)
     df = calculate_indicators(df)
 
     # Perform parameter optimization
@@ -296,3 +284,32 @@ def _walk_forward_adaptative_training():
 
     # Start live trading with adaptive training
     adaptive_training(symbol, timeframe, best_config)
+
+
+def volume_enhanced_historical_strategy_on_symbols():
+    symbol = 'BTC/USDT'
+    timeframe = '1d'
+
+    symbols = ['bitcoin', 'ethereum', 'binancecoin', 'solana']
+    results_by_symbol = {}
+    df = None
+    for symbol in symbols:
+        df = fetch_historical_data(symbol, "usd", "max")
+        df = calculate_indicators(df)
+        df = calculate_volume_indicators(df)
+        df = calculate_trend_indicators(df)
+        df = calculate_hybrid_trend(df)
+        df = refine_trend_with_volume(df)
+
+        parameter_grid = [
+            {"short_window": 14, "long_window": 28},
+            {"short_window": 20, "long_window": 40},
+        ]
+        results = optimize_volume_parameters(df, parameter_grid)
+        results_by_symbol[symbol] = results
+
+    # Display top results for each symbol
+    for symbol, results in results_by_symbol.items():
+        print(f"Best Results for {symbol}:")
+        print(results[0])
+        plot_volume_indicators(df)

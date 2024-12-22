@@ -12,10 +12,10 @@ def get_provider(provider):
     """Get a registered provider
 
     Args:
-        provider (str): binace, crypto_dd
+        provider (str): binance, crypto_dd
 
     Returns:
-        provider(args): our provider func with args
+        (function): our provider func with args
     """
     providers = {
         "binance": _binance,
@@ -48,25 +48,32 @@ def _binance(timeframe="3m", symbol="BTC/USDT", since=None):
 
 
 def _crypto_dd(timeframe=None, symbol="BTCUSDT"):
-    """    Fetch data to the ohlcv format. (binance)
+    """
+    Fetch data to the ohlcv format. (binance)
+
+    Example :
+    'timestamp', 'open', 'high', 'low', 'close', 'volume'
+    2024-12-21 00:00:00,97805.44000,99540.61000,96398.39000,97291.99000,23483.54143
+    2024-12-20 00:00:00,97461.86000,98233.00000,92232.54000,97805.44000,62884.13570
 
     Args:
         timeframe (str, optional): . Defaults to None.
         symbol (str, optional): . Defaults to "BTCUSDT".
 
     Returns:
-        pd.DataFrame: df
+       (pd.DataFrame): df
     """
 
-    url = f"{CRYPTO_DD_BASE_URL}binance_{symbol}_d.csv"
+    url = f"{CRYPTO_DD_BASE_URL}Binance_{symbol}_d.csv"
     new_columns = [
         "timestamp", "date", "symbol", "open", "high",
-        "low", "close", "volume_usdt", "volume_btc", "trade_count"
+        "low", "close", "volume", "volume_btc", "trade_count"
     ]
     dataframe = fetch_csv_as_dataframe(url, new_columns)
     df = pd.DataFrame(dataframe, columns=[
-        'timestamp', 'open', 'high', 'low', 'close', 'volume_usdt'])
+        'timestamp', 'open', 'high', 'low', 'close', 'volume'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df = df.sort_values(by="timestamp")
     return df
 
 
